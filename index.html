@@ -1,0 +1,586 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Python: мозковий штурм</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: одна сцена для проєктора — смуга раундів угорі, питання з кодом посередині, табло команд унизу. */
+:root {
+  --bg: #eef2f8;
+  --surface: #ffffff;
+  --ink: #0f1e3a;
+  --muted: #55627c;
+  --line: #d3dbe8;
+  --accent: #2458a6;
+  --accent-ink: #ffffff;
+  --flash: #f3c31f;
+  --flash-ink: #2a2000;
+  --good: #17784a;
+  --good-soft: #dcf2e6;
+  --bad: #c0392b;
+  --bad-soft: #fbe3df;
+  --code-bg: #0e1a33;
+  --code-ink: #e7edfb;
+  --code-kw: #ffd43b;
+  --code-str: #8fe3a7;
+  --code-num: #ffb38a;
+  --code-fn: #8ab4ff;
+  --code-com: #8392b3;
+  --t1: #2458a6;
+  --t2: #c47a00;
+  --t3: #17784a;
+  --t4: #b8326b;
+  --font-display: "Unbounded", "Manrope", system-ui, sans-serif;
+  --font-body: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0a1325; --surface: #121f3a; --ink: #eef2fb; --muted: #9eabc6; --line: #26365c;
+    --accent: #6fa1ff; --accent-ink: #081022; --flash: #ffd43b; --flash-ink: #2a2000;
+    --good: #4fcf8d; --good-soft: #12321f; --bad: #ff7d6e; --bad-soft: #3a1714;
+    --code-bg: #060d1c; --code-ink: #e7edfb; --code-kw: #ffd43b; --code-str: #8fe3a7; --code-num: #ffb38a; --code-fn: #8ab4ff; --code-com: #7d8cad;
+    --t1: #6fa1ff; --t2: #ffc04d; --t3: #4fcf8d; --t4: #ff7fb0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0a1325; --surface: #121f3a; --ink: #eef2fb; --muted: #9eabc6; --line: #26365c;
+  --accent: #6fa1ff; --accent-ink: #081022; --flash: #ffd43b; --flash-ink: #2a2000;
+  --good: #4fcf8d; --good-soft: #12321f; --bad: #ff7d6e; --bad-soft: #3a1714;
+  --code-bg: #060d1c; --code-ink: #e7edfb; --code-kw: #ffd43b; --code-str: #8fe3a7; --code-num: #ffb38a; --code-fn: #8ab4ff; --code-com: #7d8cad;
+  --t1: #6fa1ff; --t2: #ffc04d; --t3: #4fcf8d; --t4: #ff7fb0;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.45;
+  display: flex; flex-direction: column;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px;
+  gap: 12px;
+  overflow-x: hidden;
+}
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--flash); outline-offset: 2px; }
+
+/* Верхня смуга */
+.bar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: -0.01em; white-space: nowrap; }
+.brand span { color: var(--accent); }
+.track { display: flex; gap: 6px; flex-wrap: wrap; flex: 1 1 auto; min-width: 0; }
+.chip {
+  border: 1px solid var(--line); background: transparent; color: var(--muted);
+  border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 700; white-space: nowrap;
+}
+.chip.done { color: var(--ink); }
+.chip.now { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.tools { display: flex; gap: 6px; }
+.tool {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 10px;
+  padding: 6px 12px; font-size: 13px; font-weight: 700;
+}
+.tool[aria-pressed="false"] { color: var(--muted); }
+
+/* Сцена */
+.stage {
+  flex: 1 1 auto; min-height: 0; overflow: auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+  padding: clamp(16px, 2.4vw, 40px);
+  display: flex; flex-direction: column; gap: clamp(12px, 1.6vw, 24px);
+}
+.eyebrow { font-size: clamp(13px, 1vw, 17px); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.q-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+.q-title { font-family: var(--font-display); font-weight: 700; font-size: clamp(22px, 2.6vw, 46px); line-height: 1.15; text-wrap: balance; margin: 4px 0 0; }
+.q-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: clamp(16px, 2vw, 36px); align-items: start; }
+.q-main { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+
+.code {
+  margin: 0; background: var(--code-bg); color: var(--code-ink);
+  font-family: var(--font-code); font-size: clamp(17px, 2.25vw, 40px); line-height: 1.5;
+  border-radius: 14px; padding: clamp(14px, 1.6vw, 28px) clamp(16px, 2vw, 34px);
+  overflow-x: auto; tab-size: 4;
+}
+.code .ln { display: block; padding-inline: 8px; margin-inline: -8px; border-radius: 6px; white-space: pre; }
+.code .ln.bad { background: color-mix(in srgb, var(--bad) 38%, transparent); }
+.code .ln.good { background: color-mix(in srgb, var(--good) 38%, transparent); }
+.k { color: var(--code-kw); font-weight: 600; }
+.s { color: var(--code-str); }
+.n { color: var(--code-num); }
+.f { color: var(--code-fn); }
+.c { color: var(--code-com); font-style: italic; }
+.code.small { font-size: clamp(14px, 1.3vw, 25px); }
+.q-body.wide { grid-template-columns: minmax(0, 1fr); }
+.out.small { font-size: clamp(15px, 1.4vw, 26px); padding: 8px 16px; }
+.teacher { margin-top: auto; display: grid; gap: 6px; font-size: 14px; color: var(--muted); max-width: 46ch; }
+.teacher b { color: var(--ink); }
+
+.input-chip {
+  align-self: flex-start; display: inline-flex; gap: 10px; align-items: baseline;
+  border: 2px dashed var(--line); border-radius: 12px; padding: 8px 14px;
+  font-size: clamp(15px, 1.3vw, 24px); font-weight: 700;
+}
+.input-chip code { font-family: var(--font-code); color: var(--accent); }
+.task {
+  border-left: 6px solid var(--flash); background: color-mix(in srgb, var(--flash) 14%, var(--surface));
+  border-radius: 0 12px 12px 0; padding: 12px 18px; font-size: clamp(17px, 1.6vw, 30px); font-weight: 700; text-wrap: balance;
+}
+.task small { display: block; font-size: 0.6em; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+
+/* Таймер */
+.timer { display: grid; justify-items: center; gap: 10px; }
+.ring { width: clamp(120px, 13vw, 230px); aspect-ratio: 1; max-width: 100%; position: relative; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 10; }
+.ring .track-c { stroke: var(--line); }
+.ring .fill-c { stroke: var(--flash); stroke-linecap: round; transition: stroke-dashoffset 0.25s linear, stroke 0.2s; }
+.ring.low .fill-c { stroke: var(--bad); }
+.ring .num {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-family: var(--font-display); font-weight: 700; font-size: clamp(34px, 4.2vw, 76px);
+  font-variant-numeric: tabular-nums;
+}
+.ring.over .num { font-size: clamp(24px, 2.6vw, 46px); color: var(--bad); }
+.ring.low:not(.over) .num { color: var(--bad); }
+@media (prefers-reduced-motion: no-preference) {
+  .ring.low:not(.over):not(.paused) { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { transform: scale(1.04); } }
+}
+
+/* Відповідь */
+.answer { display: grid; gap: 12px; }
+.answer[hidden] { display: none !important; }
+.out {
+  margin: 0; font-family: var(--font-code); font-size: clamp(18px, 2.2vw, 40px); line-height: 1.4;
+  background: var(--good-soft); color: var(--ink); border: 2px solid var(--good);
+  border-radius: 14px; padding: 12px 20px; white-space: pre; overflow-x: auto;
+}
+.out.bad { background: var(--bad-soft); border-color: var(--bad); }
+.out-label { font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.explain { font-size: clamp(16px, 1.45vw, 27px); max-width: 60ch; margin: 0; text-wrap: pretty; }
+.compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.compare > div { min-width: 0; display: grid; gap: 8px; align-content: start; }
+
+/* Керування */
+.controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn {
+  border: 2px solid var(--line); background: var(--surface); border-radius: 12px;
+  padding: 10px 18px; font-weight: 800; font-size: 16px; min-height: 48px;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.flash { background: var(--flash); border-color: var(--flash); color: var(--flash-ink); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.spacer { flex: 1 1 auto; }
+.keys { font-size: 13px; color: var(--muted); }
+kbd { font-family: var(--font-code); font-size: 12px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 1px 6px; }
+
+/* Табло */
+.board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.team {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  border-top: 6px solid var(--tc); padding: 8px 12px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 8px; align-items: center;
+}
+.team.lead { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tc) 45%, transparent); }
+.team-name { font-weight: 800; font-size: clamp(14px, 1.2vw, 20px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-score { grid-row: span 2; font-family: var(--font-display); font-weight: 700; font-size: clamp(28px, 3vw, 54px); color: var(--tc); font-variant-numeric: tabular-nums; min-width: 1.6ch; text-align: right; }
+.team-btns { display: flex; gap: 6px; }
+.pt { border: 1px solid var(--line); background: transparent; border-radius: 8px; min-width: 40px; min-height: 34px; font-weight: 800; }
+.pt.plus { background: color-mix(in srgb, var(--tc) 16%, transparent); border-color: color-mix(in srgb, var(--tc) 50%, transparent); }
+
+/* Вступ */
+.intro > div:first-child { display: flex; flex-direction: column; gap: 4px; align-self: stretch; }
+.intro { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 56px); align-items: start; }
+.hero-title { font-family: var(--font-display); font-weight: 700; font-size: clamp(34px, 5vw, 92px); line-height: 1.02; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.hero-title span { color: var(--accent); }
+.hero-sub { font-size: clamp(17px, 1.6vw, 28px); color: var(--muted); margin: 10px 0 0; max-width: 34ch; }
+.rules { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; font-size: clamp(15px, 1.3vw, 23px); }
+.rules li { display: grid; grid-template-columns: 5.2em minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.rules b { font-family: var(--font-display); font-size: 0.85em; color: var(--accent); }
+.setup { display: grid; gap: 10px; }
+.setup h3 { margin: 0; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.names { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.names label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.names input, .times select {
+  border: 1px solid var(--line); border-left: 6px solid var(--tc, var(--line)); background: var(--bg);
+  border-radius: 10px; padding: 8px 10px; font-weight: 700; min-width: 0; width: 100%;
+}
+.times { display: flex; gap: 12px; flex-wrap: wrap; }
+.times label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(--muted); }
+
+.section { margin: auto 0; display: grid; gap: 14px; max-width: 56ch; }
+.section .big { font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 4.4vw, 80px); line-height: 1.05; margin: 0; text-wrap: balance; }
+.section p { font-size: clamp(17px, 1.6vw, 28px); margin: 0; }
+.note {
+  border: 2px solid var(--accent); border-radius: 14px; padding: 12px 18px;
+  font-size: clamp(17px, 1.6vw, 28px); font-weight: 700; margin: 0;
+}
+
+.podium { display: grid; gap: 10px; max-width: 760px; }
+.podium .row {
+  display: grid; grid-template-columns: 2.2em minmax(0, 1fr) auto; gap: 14px; align-items: center;
+  border: 1px solid var(--line); border-left: 8px solid var(--tc); border-radius: 14px; padding: 10px 18px;
+  font-size: clamp(18px, 1.8vw, 32px); font-weight: 800;
+}
+.podium .row.win { background: color-mix(in srgb, var(--flash) 22%, var(--surface)); border-color: var(--flash); border-left-color: var(--tc); }
+.podium .place { font-family: var(--font-display); color: var(--muted); }
+.podium .sc { font-family: var(--font-display); color: var(--tc); font-variant-numeric: tabular-nums; }
+
+.confirm { display: inline-flex; gap: 6px; align-items: center; }
+
+@media (max-width: 860px) {
+  body { overflow-y: auto; height: auto; min-height: 100%; }
+  .stage { overflow: visible; }
+  .q-body, .intro, .compare { grid-template-columns: minmax(0, 1fr); }
+  .timer { justify-self: start; grid-auto-flow: column; align-items: center; }
+  .ring { width: 110px; }
+  .board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .keys { display: none; }
+}
+</style>
+
+<header class="bar">
+  <div class="brand">Python: <span>мозковий штурм</span></div>
+  <nav class="track" id="track" aria-label="Етапи гри"></nav>
+  <div class="tools">
+    <button class="tool" id="sound-btn" type="button" aria-pressed="true">Звук</button>
+    <button class="tool" id="theme-btn" type="button">Тема</button>
+    <button class="tool" id="full-btn" type="button">Екран</button>
+  </div>
+</header>
+
+<main class="stage" id="stage" aria-live="polite"></main>
+
+<section class="board" id="board" aria-label="Табло команд"></section>
+
+<script>
+const DATA = {"warmup": [{"title": "Восени чи ні?", "code": "if ти_народився_восени:\n    встань()\nelse:\n    підніми_руку()", "note": "Усі виконують: хто народився у вересні–листопаді — встає, решта — піднімає руку."}, {"title": "Тільки перша правдива гілка", "code": "if у_тебе_є_брат_або_сестра:\n    встань()\nelif у_тебе_є_домашня_тварина:\n    підніми_руку()\nelse:\n    посміхнись()", "note": "Хто має і брата, і кота — тільки встає: після першої правдивої гілки решта пропускається."}, {"title": "Цикл for", "code": "for i in range(1, 4):\n    плесни()\nтупни()", "note": "3 оплески й 1 тупіт: тупни() без відступу — після циклу."}, {"title": "Відступ усе змінює", "code": "for i in range(1, 4):\n    плесни()\n    тупни()", "note": "Тепер 3 рази «оплеск-тупіт»: обидва рядки в тілі циклу."}, {"title": "Цикл while", "code": "енергія = 10\nwhile енергія > 0:\n    тупни()\n    енергія = енергія - 3", "note": "4 тупоти: енергія 10 → 7 → 4 → 1 → −2. Спершу клас рахує, скільки буде, потім тупає разом."}], "rounds": [{"topic": "input() та int()", "questions": [{"code": "a = \"3\"\nb = 4\nprint(a * 2, b * 2)", "input": "", "explain": "\"3\" — це текст, тому \"3\" * 2 повторює його: 33. А 4 — число: 4 * 2 = 8.", "output": "33 8"}, {"code": "x = input()\ny = input()\nprint(x + y)\nprint(int(x) + int(y))", "input": "5\n7", "explain": "input() дає текст: \"5\" + \"7\" склеюються в 57. Після int() це числа: 5 + 7 = 12.", "output": "57\n12"}]}, {"topic": "if / else", "questions": [{"code": "t = 18\nif t > 20:\n    print(\"Тепло\")\nelse:\n    print(\"Прохолодно\")\nprint(\"Гарного дня!\")", "input": "", "explain": "18 > 20 — неправда, тому спрацьовує else. Останній print без відступу — виконується завжди.", "output": "Прохолодно\nГарного дня!"}, {"code": "score = 10\nif score >= 10:\n    print(\"Відмінно\")\nif score >= 7:\n    print(\"Добре\")\nelse:\n    print(\"Спробуй ще\")", "input": "", "explain": "Тут два окремі if, а не elif! Кожен перевіряється сам по собі, тому виводяться обидва рядки.", "output": "Відмінно\nДобре"}]}, {"topic": "if / elif / else", "questions": [{"code": "score = 10\nif score >= 7:\n    print(\"Добре\")\nelif score >= 10:\n    print(\"Відмінно\")\nelse:\n    print(\"Спробуй ще\")", "input": "", "explain": "Python бере першу правдиву гілку: 10 >= 7 — правда, далі не перевіряє. Порядок умов важливий!", "output": "Добре"}, {"code": "x = 5\ny = 5\nif x > y:\n    print(\"x більше\")\nelif x < y:\n    print(\"y більше\")\nelse:\n    print(\"Рівні\")", "input": "", "explain": "Обидві умови неправдиві, тож спрацьовує else.", "output": "Рівні"}]}, {"topic": "for і range()", "questions": [{"code": "for i in range(10, 0, -3):\n    print(i)", "input": "", "explain": "Від 10 вниз з кроком 3: 10, 7, 4, 1. Наступне було б −2, але 0 і менше вже не входять.", "output": "10\n7\n4\n1"}, {"code": "total = 0\nfor i in range(1, 5):\n    total = total + i\nprint(total)", "input": "", "explain": "range(1, 5) дає 1, 2, 3, 4 (п'ятірка не входить). 1 + 2 + 3 + 4 = 10.", "output": "10"}]}, {"topic": "while", "questions": [{"code": "n = 1\nwhile n < 20:\n    n = n * 2\nprint(n)", "input": "", "explain": "1 → 2 → 4 → 8 → 16 → 32. Коли n = 16, умова ще правдива, тож множимо ще раз — і виходить 32.", "output": "32"}, {"code": "money = 100\ncount = 0\nwhile money >= 30:\n    money = money - 30\n    count = count + 1\nprint(count, money)", "input": "", "explain": "100 → 70 → 40 → 10. Три покупки по 30, лишилося 10.", "output": "3 10"}]}], "bugs": [{"topic": "input() та int()", "task": "Прочитай два числа й виведи їхню суму.", "code": "a = input()\nb = input()\nprint(\"Сума:\", a + b)", "input": "5\n7", "fixed": "a = int(input())\nb = int(input())\nprint(\"Сума:\", a + b)", "explain": "Без int() input() дає текст: для 5 і 7 виведе «Сума: 57» замість 12.", "buggy_output": "Сума: 57", "fixed_output": "Сума: 12"}, {"topic": "if / else", "task": "Кататися можна, якщо зріст 120 см або більше.", "code": "h = int(input())\nif h > 120:\n    print(\"Можна\")\nelse:\n    print(\"Не можна\")", "input": "120", "fixed": "h = int(input())\nif h >= 120:\n    print(\"Можна\")\nelse:\n    print(\"Не можна\")", "explain": "Дитина зростом рівно 120 см почує «Не можна». Потрібно >=, а не >.", "buggy_output": "Не можна", "fixed_output": "Можна"}, {"topic": "if / elif / else", "task": "За оцінкою (1–12) виведи рівень: 10–12 високий, 7–9 достатній, 4–6 середній, 1–3 початковий.", "code": "grade = int(input())\nif grade >= 4:\n    print(\"Середній\")\nelif grade >= 7:\n    print(\"Достатній\")\nelif grade >= 10:\n    print(\"Високий\")\nelse:\n    print(\"Початковий\")", "input": "11", "fixed": "grade = int(input())\nif grade >= 10:\n    print(\"Високий\")\nelif grade >= 7:\n    print(\"Достатній\")\nelif grade >= 4:\n    print(\"Середній\")\nelse:\n    print(\"Початковий\")", "explain": "Для 11 перша умова grade >= 4 уже правдива — і виходить «Середній». Перевіряти треба від найбільшого.", "buggy_output": "Середній", "fixed_output": "Високий"}, {"topic": "for", "task": "Виведи відлік 3, 2, 1, а потім один раз «Старт!».", "code": "for i in range(3, 0, -1):\n    print(i)\n    print(\"Старт!\")", "input": "", "fixed": "for i in range(3, 0, -1):\n    print(i)\nprint(\"Старт!\")", "explain": "«Старт!» має відступ, тому друкується після кожного числа. Його треба винести з циклу.", "buggy_output": "3\nСтарт!\n2\nСтарт!\n1\nСтарт!", "fixed_output": "3\n2\n1\nСтарт!"}, {"topic": "while", "task": "Скільки тижнів збирати на покупку, якщо щотижня відкладати однакову суму?", "code": "price = int(input())\nweekly = int(input())\nsaved = 0\nweeks = 0\nwhile saved < price:\n    weeks = weeks + 1\nprint(weeks)", "input": "100\n30", "fixed": "price = int(input())\nweekly = int(input())\nsaved = 0\nweeks = 0\nwhile saved < price:\n    saved = saved + weekly\n    weeks = weeks + 1\nprint(weeks)", "explain": "saved не змінюється, умова завжди правдива — цикл ніколи не закінчиться. Бракує saved = saved + weekly.", "buggy_output": "нескінченний цикл", "fixed_output": "4"}], "final": {"code": "for i in range(1, 4):\n    if i == 2:\n        print(\"два\")\n    else:\n        print(i)", "input": "", "explain": "Цикл іде по 1, 2, 3, а if усередині циклу перевіряється щоразу: тільки для 2 друкується слово.", "output": "1\nдва\n3"}};
+
+/* ---------- Слайди ---------- */
+const SLIDES = [];
+SLIDES.push({ type: "intro", chip: "Старт" });
+SLIDES.push({ type: "section", chip: "Розминка", big: "Розминка: людина-комп'ютер",
+  text: "Ви — комп'ютер. Читаємо код уголос і виконуємо його всім класом. Планшети й телефони — відкладені." });
+DATA.warmup.forEach((w, i) => SLIDES.push({ type: "warm", chip: "Розминка", n: i + 1, of: DATA.warmup.length, ...w }));
+SLIDES.push({ type: "section", chip: "Що виведе?", big: "Що виведе програма?",
+  text: "Команда радиться, пише відповідь на аркуші й піднімає за сигналом. Правильно — 1 бал. Рахуйте рядки: кожен print() — окремий рядок." });
+let qn = 0;
+const totalQ = DATA.rounds.reduce((s, r) => s + r.questions.length, 0);
+DATA.rounds.forEach((r, ri) => r.questions.forEach(q => {
+  qn++;
+  SLIDES.push({ type: "out", chip: r.topic, round: ri + 1, topic: r.topic, n: qn, of: totalQ, points: 1, timeKey: "out", ...q });
+}));
+SLIDES.push({ type: "section", chip: "ШІ помилився", big: "ШІ помилився",
+  text: "Учні попросили ШІ написати програму. Код виглядає правильно, але в ньому помилка. Знайдіть рядок і скажіть, як виправити. Помилка + пояснення — 2 бали." });
+DATA.bugs.forEach((b, i) => SLIDES.push({ type: "bug", chip: "ШІ помилився", n: i + 1, of: DATA.bugs.length, points: 2, timeKey: "bug", ...b }));
+SLIDES.push({ type: "out", chip: "Суперпитання", topic: "for + if", super: true, points: 2, timeKey: "super", ...DATA.final });
+SLIDES.push({ type: "end", chip: "Фінал" });
+
+const TEAM_DEFAULT = ["Байти", "Пітони", "Баги", "Цикли"];
+const TIMES = { out: 30, bug: 60, super: 45 };
+
+/* ---------- Стан ---------- */
+let state = { i: 0, teams: TEAM_DEFAULT.slice(), scores: [0, 0, 0, 0], times: { ...TIMES }, sound: true };
+const KEY = "pq-brain-ring-v1";
+function load() {
+  try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && Array.isArray(s.scores)) state = { ...state, ...s, times: { ...TIMES, ...(s.times || {}) } }; } catch (e) {}
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+let revealed = false;
+let timer = { total: 0, left: 0, running: false, id: null, done: false };
+let resetArmed = false;
+
+/* ---------- Підсвічування коду ---------- */
+const KW = new Set(["if", "elif", "else", "for", "in", "while", "def", "return", "and", "or", "not", "True", "False", "None", "break"]);
+const FN = new Set(["print", "input", "int", "range", "len", "str", "round", "min", "max", "sum"]);
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function hlLine(line) {
+  const re = /("[^"]*"|'[^']*')|(#.*$)|(\b\d+\b)|([A-Za-z_Ѐ-ӿ][\wЀ-ӿ]*)/g;
+  let out = "", last = 0, m;
+  while ((m = re.exec(line))) {
+    out += esc(line.slice(last, m.index));
+    const t = m[0];
+    if (m[1]) out += `<span class="s">${esc(t)}</span>`;
+    else if (m[2]) out += `<span class="c">${esc(t)}</span>`;
+    else if (m[3]) out += `<span class="n">${t}</span>`;
+    else if (KW.has(t)) out += `<span class="k">${t}</span>`;
+    else if (FN.has(t) || line.slice(re.lastIndex).startsWith("(")) out += `<span class="f">${esc(t)}</span>`;
+    else out += esc(t);
+    last = re.lastIndex;
+  }
+  return out + esc(line.slice(last));
+}
+function codeHTML(code, marks, cls) {
+  const lines = code.split("\n");
+  return `<pre class="code ${cls || ""}"><code>${lines.map((l, i) =>
+    `<span class="ln ${marks && marks[i] ? marks[i] : ""}">${hlLine(l) || " "}</span>`).join("")}</code></pre>`;
+}
+function diffMarks(a, b, mark) {
+  const other = new Set(b.split("\n"));
+  return a.split("\n").map(l => other.has(l) ? "" : mark);
+}
+const showInput = s => s.split("\n").map(v => `<code>${esc(v)}</code>`).join(", ");
+
+/* ---------- Рендер ---------- */
+const $ = id => document.getElementById(id);
+const stage = $("stage");
+
+function renderTrack() {
+  const chips = [];
+  SLIDES.forEach((s, i) => { if (!chips.length || chips[chips.length - 1].name !== s.chip) chips.push({ name: s.chip, first: i, last: i }); else chips[chips.length - 1].last = i; });
+  $("track").innerHTML = chips.map(c => {
+    const cls = state.i >= c.first && state.i <= c.last ? "now" : state.i > c.last ? "done" : "";
+    return `<button class="chip ${cls}" type="button" data-go="${c.first}">${esc(c.name)}</button>`;
+  }).join("");
+}
+
+function renderBoard() {
+  const max = Math.max(...state.scores);
+  $("board").innerHTML = state.teams.map((t, i) => `
+    <div class="team ${max > 0 && state.scores[i] === max ? "lead" : ""}" style="--tc: var(--t${i + 1})">
+      <div class="team-name" title="${esc(t)}">${i + 1}. ${esc(t)}</div>
+      <div class="team-score" aria-label="Бали команди ${esc(t)}">${state.scores[i]}</div>
+      <div class="team-btns">
+        <button class="pt" type="button" data-pt="${i}" data-d="-1" aria-label="Мінус бал: ${esc(t)}">−1</button>
+        <button class="pt plus" type="button" data-pt="${i}" data-d="1" aria-label="Плюс бал: ${esc(t)}">+1</button>
+      </div>
+    </div>`).join("");
+}
+
+function controlsHTML(s) {
+  const hasTimer = s.timeKey;
+  const hasReveal = s.type === "out" || s.type === "bug" || s.type === "warm";
+  return `<div class="controls">
+    <button class="btn" type="button" data-act="prev" ${state.i === 0 ? "disabled" : ""}>← Назад</button>
+    ${hasTimer ? `<button class="btn flash" type="button" data-act="timer" id="timer-btn">${timer.running ? "Пауза" : timer.done ? "Ще раз" : "Старт таймера"}</button>` : ""}
+    ${hasReveal ? `<button class="btn" type="button" data-act="reveal" id="reveal-btn">${revealed ? "Сховати відповідь" : "Показати відповідь"}</button>` : ""}
+    <span class="spacer"></span>
+    <span class="keys"><kbd>Пробіл</kbd> таймер · <kbd>Enter</kbd> відповідь · <kbd>1</kbd>–<kbd>4</kbd> бал команді · <kbd>→</kbd> далі</span>
+    <button class="btn primary" type="button" data-act="next" ${state.i === SLIDES.length - 1 ? "disabled" : ""}>Далі →</button>
+  </div>`;
+}
+
+function timerHTML() {
+  return `<div class="timer"><div class="ring" id="ring">
+    <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="track-c" cx="60" cy="60" r="52"/><circle class="fill-c" id="ring-fill" cx="60" cy="60" r="52"/></svg>
+    <div class="num" id="ring-num" role="timer" aria-live="off"></div></div></div>`;
+}
+
+function render() {
+  const s = SLIDES[state.i];
+  renderTrack(); renderBoard();
+  let h = "";
+  if (s.type === "intro") {
+    h = `<div class="intro">
+      <div>
+        <div class="eyebrow">Командна гра</div>
+        <h1 class="hero-title">Python: <span>мозковий штурм</span></h1>
+        <p class="hero-sub">Повторюємо: input() та int(), if / else, elif, for, while.</p>
+        <div class="teacher">
+          <div><b>Для вчителя.</b> Керуйте з клавіатури ноутбука:</div>
+          <div><kbd>→</kbd> далі · <kbd>←</kbd> назад · <kbd>Пробіл</kbd> таймер · <kbd>Enter</kbd> показати відповідь</div>
+          <div><kbd>1</kbd>–<kbd>4</kbd> бал команді · <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>4</kbd> забрати бал</div>
+          <div>Бали й назви команд зберігаються в цьому браузері, навіть якщо сторінку закрити.</div>
+        </div>
+      </div>
+      <div class="setup">
+        <ul class="rules">
+          <li><b>Розминка</b><span>Виконуємо код усім класом.</span></li>
+          <li><b>Раунди</b><span>«Що виведе?» — 10 питань, ${state.times.out} с, 1 бал.</span></li>
+          <li><b>ШІ</b><span>Знайти помилку в коді від ШІ — ${state.times.bug} с, 2 бали.</span></li>
+          <li><b>Супер</b><span>Фінальне питання — ${state.times.super} с, 2 бали.</span></li>
+        </ul>
+        <h3>Команди</h3>
+        <div class="names">${state.teams.map((t, i) => `<label for="team-name-${i + 1}">Команда ${i + 1}
+          <input id="team-name-${i + 1}" data-team="${i}" value="${esc(t)}" maxlength="20" style="--tc: var(--t${i + 1})"></label>`).join("")}</div>
+        <h3>Час на відповідь</h3>
+        <div class="times">
+          ${[["out", "Що виведе?"], ["bug", "ШІ помилився"], ["super", "Суперпитання"]].map(([k, l]) => `<label for="time-${k}">${l}
+            <select id="time-${k}" data-time="${k}">${[20, 30, 45, 60, 90].map(v => `<option value="${v}" ${state.times[k] === v ? "selected" : ""}>${v} с</option>`).join("")}</select></label>`).join("")}
+        </div>
+        <div class="controls">
+          <span id="reset-zone"><button class="btn" type="button" data-act="reset-ask">Обнулити бали</button></span>
+          <span class="spacer"></span>
+          <button class="btn primary" type="button" data-act="next">Почати гру →</button>
+        </div>
+      </div>
+    </div>`;
+  } else if (s.type === "section") {
+    h = `<div class="section"><div class="eyebrow">Новий етап</div><h2 class="big">${esc(s.big)}</h2><p>${esc(s.text)}</p></div>${controlsHTML(s)}`;
+  } else if (s.type === "warm") {
+    h = `<div class="eyebrow">Розминка · ${s.n} з ${s.of}</div>
+      <h2 class="q-title">${esc(s.title)}</h2>
+      ${codeHTML(s.code)}
+      <div class="answer" id="answer" ${revealed ? "" : "hidden"}><p class="note">${esc(s.note)}</p></div>
+      ${controlsHTML(s)}`;
+  } else if (s.type === "out") {
+    const label = s.super ? `Суперпитання · ${s.points} бали` : `Раунд ${s.round} · ${esc(s.topic)} · питання ${s.n} з ${s.of}`;
+    h = `<div class="q-head"><div><div class="eyebrow">${label}</div><h2 class="q-title">Що виведе програма?</h2></div></div>
+      <div class="q-body">
+        <div class="q-main">
+          ${codeHTML(s.code)}
+          ${s.input ? `<div class="input-chip">Вхідні дані: ${showInput(s.input)}</div>` : ""}
+          <div class="answer" id="answer" ${revealed ? "" : "hidden"}>
+            <div class="out-label">Вивід</div>
+            <pre class="out">${esc(s.output)}</pre>
+            <p class="explain">${esc(s.explain)}</p>
+          </div>
+        </div>
+        ${timerHTML()}
+      </div>${controlsHTML(s)}`;
+  } else if (s.type === "bug") {
+    h = `<div class="q-head"><div><div class="eyebrow">ШІ помилився · ${esc(s.topic)} · ${s.n} з ${s.of} · 2 бали</div>
+        <h2 class="q-title">Знайдіть помилку</h2></div></div>
+      <div class="q-body ${revealed ? "wide" : ""}">
+        <div class="q-main">
+          <div class="task"><small>Учень попросив ШІ</small>«${esc(s.task)}»</div>
+          ${revealed ? "" : codeHTML(s.code)}
+          ${s.input ? `<div class="input-chip">Перевірте на вводі: ${showInput(s.input)}</div>` : ""}
+          <div class="answer" id="answer" ${revealed ? "" : "hidden"}>
+            <div class="compare">
+              <div><div class="out-label">Код від ШІ</div>${codeHTML(s.code, diffMarks(s.code, s.fixed, "bad"), "small")}
+                <pre class="out bad small">${esc(s.buggy_output === "нескінченний цикл" ? "…програма зависає: нескінченний цикл" : s.buggy_output)}</pre></div>
+              <div><div class="out-label">Виправлено</div>${codeHTML(s.fixed, diffMarks(s.fixed, s.code, "good"), "small")}
+                <pre class="out small">${esc(s.fixed_output)}</pre></div>
+            </div>
+            <p class="explain">${esc(s.explain)}</p>
+          </div>
+        </div>
+        ${revealed ? "" : timerHTML()}
+      </div>${controlsHTML(s)}`;
+  } else if (s.type === "end") {
+    const order = state.teams.map((t, i) => ({ t, i, sc: state.scores[i] })).sort((a, b) => b.sc - a.sc);
+    const top = order[0].sc;
+    h = `<div class="section" style="max-width:none"><div class="eyebrow">Фінал</div><h2 class="big">Результати</h2>
+      <div class="podium">${order.map((o, k) => `<div class="row ${o.sc === top && top > 0 ? "win" : ""}" style="--tc: var(--t${o.i + 1})">
+        <span class="place">${order.findIndex(x => x.sc === o.sc) + 1}</span><span>${esc(o.t)}</span><span class="sc">${o.sc}</span></div>`).join("")}</div>
+      <p>Далі — вихідний квиток: одне «Що виведе?» на аркуші, самостійно.</p></div>${controlsHTML(s)}`;
+  }
+  stage.innerHTML = h;
+  if (s.timeKey) drawTimer();
+}
+
+/* ---------- Таймер ---------- */
+function resetTimer() {
+  clearInterval(timer.id);
+  const s = SLIDES[state.i];
+  const t = s.timeKey ? state.times[s.timeKey] : 0;
+  timer = { total: t, left: t, running: false, id: null, done: false };
+}
+function drawTimer() {
+  const ring = $("ring"), fill = $("ring-fill"), num = $("ring-num");
+  if (!ring) return;
+  const C = 2 * Math.PI * 52;
+  fill.style.strokeDasharray = C;
+  fill.style.strokeDashoffset = C * (1 - timer.left / timer.total);
+  num.textContent = timer.done ? "Час!" : Math.ceil(timer.left);
+  ring.classList.toggle("low", timer.left <= 5);
+  ring.classList.toggle("over", timer.done);
+  ring.classList.toggle("paused", !timer.running);
+  const b = $("timer-btn");
+  if (b) b.textContent = timer.running ? "Пауза" : timer.done ? "Ще раз" : timer.left < timer.total ? "Продовжити" : "Старт таймера";
+}
+function toggleTimer() {
+  if (!SLIDES[state.i].timeKey) return;
+  if (timer.done) { resetTimer(); }
+  if (timer.running) { clearInterval(timer.id); timer.running = false; drawTimer(); return; }
+  unlockAudio();
+  timer.running = true;
+  let lastBeep = Math.ceil(timer.left);
+  const started = performance.now(), from = timer.left;
+  timer.id = setInterval(() => {
+    timer.left = Math.max(0, from - (performance.now() - started) / 1000);
+    const sec = Math.ceil(timer.left);
+    if (sec !== lastBeep && sec <= 3 && sec > 0) beep(660, 0.08);
+    lastBeep = sec;
+    if (timer.left <= 0) { clearInterval(timer.id); timer.running = false; timer.done = true; beep(440, 0.6); }
+    drawTimer();
+  }, 100);
+  drawTimer();
+}
+
+/* ---------- Звук ---------- */
+let audio = null;
+function unlockAudio() { if (!state.sound) return; try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch (e) { audio = null; } }
+function beep(freq, dur) {
+  if (!state.sound || !audio) return;
+  try {
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.frequency.value = freq; o.type = "sine";
+    g.gain.setValueAtTime(0.0001, audio.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.3, audio.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + dur);
+    o.connect(g).connect(audio.destination); o.start(); o.stop(audio.currentTime + dur + 0.05);
+  } catch (e) {}
+}
+
+/* ---------- Дії ---------- */
+function go(i) {
+  state.i = Math.max(0, Math.min(SLIDES.length - 1, i));
+  revealed = false; resetArmed = false; resetTimer(); save(); render();
+  stage.scrollTop = 0;
+}
+function reveal() {
+  const s = SLIDES[state.i];
+  if (!["out", "bug", "warm"].includes(s.type)) return;
+  revealed = !revealed;
+  if (revealed && timer.running) { clearInterval(timer.id); timer.running = false; }
+  render();
+}
+function addPoint(t, d) { state.scores[t] = Math.max(0, state.scores[t] + d); save(); renderBoard(); if (SLIDES[state.i].type === "end") render(); }
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.go) return go(+b.dataset.go);
+  if (b.dataset.pt) return addPoint(+b.dataset.pt, +b.dataset.d);
+  const a = b.dataset.act;
+  if (a === "next") go(state.i + 1);
+  else if (a === "prev") go(state.i - 1);
+  else if (a === "timer") toggleTimer();
+  else if (a === "reveal") reveal();
+  else if (a === "reset-ask") {
+    $("reset-zone").innerHTML = `<span class="confirm">Обнулити всі бали? <button class="btn" type="button" data-act="reset-yes">Так</button><button class="btn" type="button" data-act="reset-no">Ні</button></span>`;
+  } else if (a === "reset-yes") { state.scores = [0, 0, 0, 0]; save(); render(); }
+  else if (a === "reset-no") render();
+});
+document.addEventListener("input", e => {
+  if (e.target.dataset.team != null) { state.teams[+e.target.dataset.team] = e.target.value.trim() || TEAM_DEFAULT[+e.target.dataset.team]; save(); renderBoard(); }
+});
+document.addEventListener("change", e => {
+  if (e.target.dataset.time) { state.times[e.target.dataset.time] = +e.target.value; save(); render(); }
+});
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input, select, textarea")) return;
+  if (e.key === "ArrowRight" || e.key === "PageDown") { e.preventDefault(); go(state.i + 1); }
+  else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); go(state.i - 1); }
+  else if (e.key === " ") { e.preventDefault(); toggleTimer(); }
+  else if (e.key === "Enter") { e.preventDefault(); reveal(); }
+  else if (/^Digit[1-4]$/.test(e.code)) { e.preventDefault(); addPoint(+e.code.slice(5) - 1, e.shiftKey ? -1 : 1); }
+});
+
+$("sound-btn").addEventListener("click", () => { state.sound = !state.sound; save(); syncTools(); if (state.sound) { unlockAudio(); beep(660, 0.08); } });
+$("theme-btn").addEventListener("click", () => {
+  const root = document.documentElement;
+  const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = dark ? "light" : "dark";
+});
+$("full-btn").addEventListener("click", () => {
+  try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); } catch (e) {}
+});
+function syncTools() { $("sound-btn").setAttribute("aria-pressed", String(state.sound)); $("sound-btn").textContent = state.sound ? "Звук увімк." : "Звук вимк."; }
+
+function start(snap) {
+  load();
+  if (snap && snap.state) state = snap.state;
+  syncTools(); resetTimer(); render();
+}
+window.claude?.hot?.snapshot?.(() => ({ state }));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+
+</body></html>
